@@ -1,0 +1,15 @@
+[project]
+name = "jev-playground"
+version = "0.1.0"
+description = "TypeSafe Jev System One 决策模型现代化评测工作台"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "jieba>=0.42.1",
+    "pydantic>=2.13.5",
+    "python-dotenv>=1.2.3",
+    "typesafe-sdk>=0.7.0",
+    "uvicorn>=0.53.0",
+]

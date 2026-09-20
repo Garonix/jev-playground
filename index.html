@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jev Playground</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              300: '#6ee7b7',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          },
+          boxShadow: {
+            '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+            'xs': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #10B981; }
+    
+    button, input, select, textarea {
+      transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 150ms;
+    }
+    .card-hover {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.9; }
+      50% { transform: scale(1.15); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.9; }
+    }
+    .pulse-emerald {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 h-screen max-h-screen overflow-hidden flex flex-col antialiased selection:bg-emerald-500/20 selection:text-emerald-900">
+  <div id="app" class="h-full w-full flex flex-col overflow-hidden" v-cloak>
+    <!-- Top Header (Fixed 44px) -->
+    <header class="h-11 shrink-0 border-b border-slate-200/90 bg-white px-4 flex items-center justify-between shadow-2xs z-10">
+      <div class="flex items-center space-x-2">
+        <div class="w-5 h-5 rounded-md bg-emerald-500 shadow-xs ring-2 ring-emerald-500/20 shrink-0"></div>
+        <span class="text-sm font-semibold tracking-tight text-slate-900 font-mono">Jev Playground</span>
+        <a 
+          href="https://github.com/Garonix/jev-playground" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="text-[11px] font-mono text-slate-400 hover:text-emerald-700 hover:underline transition-colors ml-0.5">
+          @Garonix
+        </a>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center bg-slate-50 border border-slate-200/90 rounded-md px-2 py-0.5 text-xs shadow-2xs hover:border-slate-300">
+          <select v-model="selectedModel" class="bg-transparent text-slate-700 font-mono focus:outline-none cursor-pointer">
+            <option value="jev-latest">jev-latest</option>
+            <option value="jev-1.13.0">jev-1.13.0</option>
+            <option value="jev-preview">jev-preview</option>
+          </select>
+        </div>
+
+        <button 
+          @click="showKeyModal = true"
+          class="flex items-center space-x-2 border border-slate-200/90 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 px-2.5 py-1 rounded-md text-xs transition font-mono active:scale-95 shadow-2xs">
+          <span class="w-1.5 h-1.5 rounded-full" :class="apiKeyValid ? 'bg-emerald-500 ring-2 ring-emerald-400/30' : 'bg-amber-400'"></span>
+          <span class="text-slate-700 font-medium">{{ apiKeyValid ? t('connected_msg') : t('disconnected_msg') }}</span>
+          <span v-if="pingLatency" class="text-[10px] text-slate-400">{{ pingLatency }}ms</span>
+        </button>
+
+        <a 
+          href="https://docs.typesafe.ai" 
+          target="_blank" 
+          class="text-xs text-slate-500 hover:text-emerald-600 px-2 py-1 transition font-mono font-medium">
+          {{ t('official_docs') }}
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Workspace (Strictly 3 Equal-Height Blocks) -->
+    <div class="flex-1 flex overflow-hidden min-h-0">
+      <!-- Block 1: Sidebar (Case Navigation) -->
+      <aside class="w-56 shrink-0 h-full border-r border-slate-200/90 bg-[#F8FAFC] flex flex-col p-3 space-y-1 overflow-y-auto min-h-0">
+        <div class="px-2 py-1.5 text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
+          {{ t('cases_title') }}
+        </div>
+
+        <button 
+          v-for="c in cases" 
+          :key="c.id"
+          @click="switchCase(c.id)"
+          :class="currentCaseId === c.id ? 'bg-white text-emerald-800 font-semibold shadow-xs border border-emerald-300 ring-1 ring-emerald-500/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 border border-transparent'"
+          class="w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between transition-all duration-150 active:scale-[0.98]">
+          <span>{{ (currentLang === 'en' && c.english_title) ? c.english_title : c.title }}</span>
+          <span class="text-[10px] font-mono" :class="currentCaseId === c.id ? 'text-emerald-600 font-medium' : 'text-slate-400'">{{ (currentLang === 'en' && c.pattern_en) ? c.pattern_en : c.pattern }}</span>
+        </button>
+
+        <div class="pt-4 px-2 py-1.5 text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
+          {{ t('experiment') }}
+        </div>
+        <button 
+          @click="switchCase('custom')"
+          :class="currentCaseId === 'custom' ? 'bg-white text-emerald-800 font-semibold shadow-xs border border-emerald-300 ring-1 ring-emerald-500/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 border border-transparent'"
+          class="w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between transition-all duration-150 active:scale-[0.98]">
+          <span>{{ t('custom_playground') }}</span>
+          <span class="text-[10px] font-mono" :class="currentCaseId === 'custom' ? 'text-emerald-600 font-medium' : 'text-slate-400'">Playground</span>
+        </button>
+      </aside>
+
+      <!-- Main Columns (Blocks 2 & 3) -->
+      <main class="flex-1 flex overflow-hidden min-h-0">
+        <!-- Block 2: Input & Configuration Panel -->
+        <section class="w-1/2 h-full border-r border-slate-200/90 bg-white flex flex-col overflow-hidden min-h-0">
+          <!-- Pinned Top: Case Header, Presets & Mode Tabs -->
+          <div class="shrink-0 p-4 pb-2.5 space-y-2.5 border-b border-slate-100 bg-white">
+            <!-- Case Header & Bilingual Toggle -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <h2 class="text-sm font-bold text-slate-900">{{ currentCase ? ((currentLang === 'en' && currentCase.english_title) ? currentCase.english_title : currentCase.title) : t('custom_playground') }}</h2>
+                <span class="text-xs text-slate-400 font-mono">/ {{ currentCase ? ((currentLang === 'en' && currentCase.pattern_en) ? currentCase.pattern_en : currentCase.pattern) : 'Playground' }}</span>
+              </div>
+
+              <!-- Bilingual Switch Button (ZH / EN) -->
+              <div v-if="currentCase" class="flex items-center bg-slate-100 border border-slate-200/80 rounded-md p-0.5 text-xs font-mono">
+                <button 
+                  @click="setLang('zh')" 
+                  :class="currentLang === 'zh' ? 'bg-white text-emerald-700 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                  class="px-2.5 py-0.5 rounded transition">
+                  {{ t('lang_zh') }}
+                </button>
+                <button 
+                  @click="setLang('en')" 
+                  :class="currentLang === 'en' ? 'bg-white text-emerald-700 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                  class="px-2.5 py-0.5 rounded transition">
+                  {{ t('lang_en') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Presets -->
+            <div v-if="currentCase && activePresets && activePresets.length" class="space-y-1.5">
+              <div class="text-[10px] uppercase font-mono text-slate-400 font-semibold">{{ t('presets') }}</div>
+              <div class="flex flex-wrap gap-1.5">
+                <button 
+                  v-for="(p, idx) in activePresets" 
+                  :key="idx"
+                  @click="loadPreset(p)"
+                  :class="activePresetName === p.name ? 'bg-emerald-50 border-emerald-400 text-emerald-800 font-semibold shadow-xs ring-1 ring-emerald-500/20' : 'bg-slate-50 hover:bg-emerald-50/50 border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-700'"
+                  class="text-xs px-2.5 py-1 rounded-md border transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-2xs">
+                  {{ p.name }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Presets -->
+            <div v-if="currentCaseId === 'custom'" class="space-y-1.5">
+              <div class="text-[10px] uppercase font-mono text-slate-400 font-semibold">{{ t('presets') }}</div>
+              <div class="flex flex-wrap gap-1.5">
+                <button 
+                  v-for="(cp, idx) in customPresets" 
+                  :key="idx"
+                  @click="loadCustomPreset(cp)"
+                  :class="activePresetName === cp.name ? 'bg-emerald-50 border-emerald-400 text-emerald-800 font-semibold shadow-xs ring-1 ring-emerald-500/20' : 'bg-slate-50 hover:bg-emerald-50/50 border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-700'"
+                  class="text-xs px-2.5 py-1 rounded-md border transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-2xs">
+                  {{ cp.name }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Input Mode Tabs: State vs Questions -->
+            <div class="flex items-center justify-between pt-1">
+              <div class="flex items-center space-x-5 font-mono text-xs">
+                <button 
+                  @click="activeInputTab = 'state'"
+                  :class="activeInputTab === 'state' ? 'text-emerald-700 border-b-2 border-emerald-500 font-bold' : 'text-slate-400 hover:text-slate-600'"
+                  class="pb-1 uppercase tracking-wider transition">
+                  State
+                </button>
+                <button 
+                  @click="activeInputTab = 'questions'"
+                  :class="activeInputTab === 'questions' ? 'text-emerald-700 border-b-2 border-emerald-500 font-bold' : 'text-slate-400 hover:text-slate-600'"
+                  class="pb-1 uppercase tracking-wider transition flex items-center space-x-1.5">
+                  <span>Questions</span>
+                  <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-mono font-semibold">{{ currentQuestionsSpec.length }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Middle: Scrollable & Flexible Editor Area -->
+          <div class="flex-1 min-h-0 p-4 pt-2.5 pb-2 overflow-y-auto flex flex-col">
+            <!-- Tab 1: State Input Editor (Dual-Mode: Block vs JSON) -->
+            <div v-if="activeInputTab === 'state'" class="flex-1 min-h-0 flex flex-col space-y-2.5 overflow-hidden">
+              <!-- State Toolbar -->
+              <div class="shrink-0 flex items-center justify-between bg-slate-50/90 border border-slate-200/80 rounded-lg p-1.5 text-xs font-mono shadow-2xs">
+                <div class="flex items-center space-x-1.5">
+                  <!-- Undo Button -->
+                  <button 
+                    @click="undoStateEdit" 
+                    :disabled="stateUndoHistory.length === 0"
+                    class="px-2 py-1 rounded text-xs font-mono border transition flex items-center space-x-1"
+                    :class="stateUndoHistory.length > 0 ? 'bg-white border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 shadow-2xs hover:-translate-y-0.5' : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed'">
+                    <span>{{ t('undo') }}</span>
+                    <span v-if="stateUndoHistory.length > 0" class="text-[10px] text-emerald-600 font-semibold">({{ stateUndoHistory.length }})</span>
+                  </button>
+
+                  <!-- Reset Button -->
+                  <button 
+                    @click="restoreDefaultState" 
+                    :disabled="!isStateDirty && stateUndoHistory.length === 0"
+                    class="px-2 py-1 rounded text-xs font-mono border transition flex items-center space-x-1"
+                    :class="(isStateDirty || stateUndoHistory.length > 0) ? 'bg-white border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 shadow-2xs hover:-translate-y-0.5' : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed'">
+                    <span>{{ t('reset') }}</span>
+                    <span v-if="isStateDirty" class="w-1.5 h-1.5 rounded-full bg-amber-400 ring-2 ring-amber-200"></span>
+                  </button>
+
+                  <!-- Add Field -->
+                  <button 
+                    @click="addStateField"
+                    class="px-2.5 py-1 rounded text-xs font-mono border border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 font-semibold shadow-2xs hover:-translate-y-0.5 active:scale-95 transition-all">
+                    {{ t('add_field') }}
+                  </button>
+                </div>
+
+                <!-- Right: Char limit + View Switcher -->
+                <div class="flex items-center space-x-2">
+                  <div v-if="enableAttribution" class="flex items-center space-x-1.5 text-[11px] text-slate-500 font-mono">
+                    <span>{{ t('chars') }}</span>
+                    <span :class="currentInputCharCount > maxCharLimit ? 'text-rose-600 font-bold' : 'text-slate-800 font-medium'">
+                      {{ currentInputCharCount }}
+                    </span>
+                    <span class="text-slate-400">/</span>
+                    <input 
+                      type="number" 
+                      v-model.number="maxCharLimit" 
+                      min="20" 
+                      max="10000" 
+                      step="50"
+                      class="w-14 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-center text-xs text-slate-800 focus:border-emerald-500 focus:outline-none shadow-2xs" />
+                  </div>
+                  <div v-else class="text-[11px] text-slate-500 font-mono hidden sm:inline-block">
+                    <span>{{ t('chars_count') }} {{ currentInputCharCount }}</span>
+                  </div>
+
+                  <!-- View Switcher -->
+                  <div class="flex items-center bg-slate-200/60 border border-slate-200 rounded-md p-0.5 text-xs font-mono">
+                    <button 
+                      @click="setStateViewMode('cards')" 
+                      :class="stateViewMode === 'cards' ? 'bg-white text-emerald-800 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                      class="px-2 py-0.5 rounded transition">
+                      {{ t('view_block') }}
+                    </button>
+                    <button 
+                      @click="setStateViewMode('json')" 
+                      :class="stateViewMode === 'json' ? 'bg-white text-emerald-800 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                      class="px-2 py-0.5 rounded transition">
+                      {{ t('view_json') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- View 1: Block / Hierarchical Tree Form Editor -->
+              <div v-if="stateViewMode === 'cards'" class="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1">
+                <div v-if="stateFields.length === 0" class="p-6 text-center text-slate-400 text-xs font-mono border border-dashed border-slate-200 rounded-lg bg-white">
+                  {{ t('no_fields') }}
+                </div>
+
+                <state-node 
+                  v-for="(f, fIdx) in stateFields" 
+                  :key="fIdx"
+                  :node="f"
+                  :index="fIdx"
+                  :depth="0"
+                  parent-type="object"
+                  @change="syncJsonFromStateFields"
+                  @focus="recordStateFieldFocus"
+                  @blur="recordStateFieldBlur"
+                  @delete="deleteStateField(fIdx)">
+                </state-node>
+              </div>
+
+              <!-- View 2: JSON Code Editor -->
+              <div v-if="stateViewMode === 'json'" class="flex-1 min-h-0 flex flex-col space-y-2">
+                <div class="shrink-0 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                  <span>{{ t('view_json') }}</span>
+                  <button @click="formatStateJson" class="text-emerald-700 hover:text-emerald-800 font-medium">{{ t('format') }}</button>
+                </div>
+                <textarea 
+                  v-model="stateJsonText" 
+                  @input="onStateJsonInput"
+                  class="w-full flex-1 min-h-[140px] bg-slate-50 border rounded-lg p-3 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none resize-none leading-relaxed transition-all shadow-2xs"
+                  :class="(enableAttribution && currentInputCharCount > maxCharLimit) ? 'border-rose-400 focus:border-rose-600 focus:ring-1 focus:ring-rose-400/20' : 'border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20'">
+                </textarea>
+                <div v-if="stateJsonError" class="shrink-0 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-mono shadow-2xs">
+                  {{ t('syntax_error') }}: {{ stateJsonError }}
+                </div>
+              </div>
+
+              <!-- Overflow Warning -->
+              <div v-if="enableAttribution && currentInputCharCount > maxCharLimit" class="shrink-0 text-[11px] font-mono text-rose-600 px-1 font-medium">
+                {{ t('char_overflow') }} {{ currentInputCharCount - maxCharLimit }}
+              </div>
+            </div>
+
+            <!-- Tab 2: Questions Spec Editor -->
+            <div v-if="activeInputTab === 'questions'" class="flex-1 min-h-0 flex flex-col space-y-2.5 overflow-hidden">
+              <!-- Questions Toolbar -->
+              <div class="shrink-0 flex items-center justify-between bg-slate-50/90 border border-slate-200/80 rounded-lg p-1.5 text-xs font-mono shadow-2xs">
+                <div class="flex items-center space-x-1.5">
+                  <!-- Undo Button -->
+                  <button 
+                    @click="undoQuestionEdit" 
+                    :disabled="undoHistory.length === 0"
+                    class="px-2 py-1 rounded text-xs font-mono border transition flex items-center space-x-1"
+                    :class="undoHistory.length > 0 ? 'bg-white border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 shadow-2xs hover:-translate-y-0.5' : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed'">
+                    <span>{{ t('undo') }}</span>
+                    <span v-if="undoHistory.length > 0" class="text-[10px] text-emerald-600 font-semibold">({{ undoHistory.length }})</span>
+                  </button>
+
+                  <!-- Reset Button -->
+                  <button 
+                    @click="restoreDefaultQuestions"
+                    :disabled="!isQuestionsDirty && undoHistory.length === 0"
+                    class="px-2 py-1 rounded text-xs font-mono border transition flex items-center space-x-1"
+                    :class="(isQuestionsDirty || undoHistory.length > 0) ? 'bg-white border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 shadow-2xs hover:-translate-y-0.5' : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed'">
+                    <span>{{ t('reset') }}</span>
+                    <span v-if="isQuestionsDirty" class="w-1.5 h-1.5 rounded-full bg-amber-400 ring-2 ring-amber-200"></span>
+                  </button>
+
+                  <!-- Add Question -->
+                  <button 
+                    @click="addQuestion"
+                    class="px-2.5 py-1 rounded text-xs font-mono border border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 font-semibold shadow-2xs hover:-translate-y-0.5 active:scale-95 transition-all">
+                    {{ t('add_question') }}
+                  </button>
+                </div>
+
+                <!-- View Switcher -->
+                <div class="flex items-center bg-slate-200/60 border border-slate-200 rounded-md p-0.5 text-xs font-mono">
+                  <button 
+                    @click="setQuestionsViewMode('cards')" 
+                    :class="questionsViewMode === 'cards' ? 'bg-white text-emerald-800 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                    class="px-2 py-0.5 rounded transition">
+                    {{ t('view_cards') }}
+                  </button>
+                  <button 
+                    @click="setQuestionsViewMode('json')" 
+                    :class="questionsViewMode === 'json' ? 'bg-white text-emerald-800 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                    class="px-2 py-0.5 rounded transition">
+                    {{ t('view_json') }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- View 1: Cards Form Editor -->
+              <div v-if="questionsViewMode === 'cards'" class="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1">
+                <div v-if="currentQuestionsSpec.length === 0" class="p-6 text-center text-slate-400 text-xs font-mono border border-dashed border-slate-200 rounded-lg bg-white">
+                  {{ t('no_questions') }}
+                </div>
+
+                <div 
+                  v-for="(q, qIdx) in currentQuestionsSpec" 
+                  :key="qIdx"
+                  class="border border-slate-200 bg-white rounded-lg p-3 space-y-2 text-xs font-mono shadow-2xs hover:shadow-xs hover:border-emerald-300 transition-all duration-150">
+                  <!-- Card Header -->
+                  <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                    <div class="flex items-center space-x-2 flex-1 mr-2">
+                      <span class="text-[10px] text-slate-400 font-mono">#{{ qIdx + 1 }}</span>
+                      <input 
+                        type="text" 
+                        v-model="q.id" 
+                        @focus="recordFieldFocus" 
+                        @blur="recordFieldBlur" 
+                        placeholder="ID"
+                        class="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-0.5 text-xs font-mono font-semibold text-emerald-800 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-colors" />
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                      <select 
+                        :value="q.type" 
+                        @change="changeQuestionType(q, $event.target.value)"
+                        class="bg-slate-50 border border-slate-200 text-[10px] font-mono uppercase px-1.5 py-0.5 rounded text-slate-700 focus:border-emerald-500 focus:outline-none cursor-pointer">
+                        <option value="choice">choice</option>
+                        <option value="score">score</option>
+                        <option value="noul">noul</option>
+                      </select>
+
+                      <button 
+                        @click="deleteQuestion(qIdx)" 
+                        class="text-slate-400 hover:text-rose-600 text-xs font-mono px-1 transition">
+                        {{ t('delete') }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Instructions Input -->
+                  <div class="space-y-1">
+                    <div class="text-[10px] text-slate-400 font-mono">{{ t('instructions_label') }}</div>
+                    <div v-if="typeof q.instructions === 'string'">
+                      <textarea 
+                        v-model="q.instructions" 
+                        @focus="recordFieldFocus" 
+                        @blur="recordFieldBlur" 
+                        rows="2" 
+                        :placeholder="t('placeholder_instructions')"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none resize-none leading-relaxed transition-colors"></textarea>
+                    </div>
+                    <div v-else class="space-y-1.5 bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono">
+                      <div v-for="(v, k) in q.instructions" :key="k" class="flex items-center space-x-2">
+                        <span class="text-slate-500 text-[10px] w-16 shrink-0">{{ k }}:</span>
+                        <input 
+                          type="text" 
+                          v-model="q.instructions[k]" 
+                          @focus="recordFieldFocus" 
+                          @blur="recordFieldBlur" 
+                          class="flex-1 bg-white border border-slate-200 rounded px-2 py-0.5 text-xs text-slate-800 focus:border-emerald-500 focus:outline-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Criteria for Choice -->
+                  <div v-if="q.type === 'choice'" class="pt-1.5 space-y-1.5 border-t border-slate-100">
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                      <span>{{ t('options_label') }}</span>
+                      <button @click="addChoiceOption(q)" class="text-emerald-700 hover:text-emerald-800 font-medium">{{ t('add_option') }}</button>
+                    </div>
+                    <div class="space-y-1">
+                      <div v-for="(crit, optKey) in q.criteria" :key="optKey" class="flex items-start space-x-1.5 text-xs font-mono">
+                        <input 
+                          type="text" 
+                          :value="optKey" 
+                          @change="onChoiceKeyChange(q, optKey, $event.target.value)"
+                          class="w-24 shrink-0 bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-slate-800 text-[11px] focus:bg-white focus:border-emerald-500 focus:outline-none" 
+                          :placeholder="t('placeholder_option_key')" />
+                        <span class="text-slate-400 pt-1">:</span>
+                        <input 
+                          v-if="typeof crit === 'string'"
+                          type="text" 
+                          v-model="q.criteria[optKey]" 
+                          @focus="recordFieldFocus" 
+                          @blur="recordFieldBlur" 
+                          class="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 text-[11px] focus:border-emerald-500 focus:outline-none" 
+                          :placeholder="t('placeholder_option_desc')" />
+                        <input 
+                          v-else-if="crit && crit.what !== undefined"
+                          type="text" 
+                          v-model="crit.what" 
+                          @focus="recordFieldFocus" 
+                          @blur="recordFieldBlur" 
+                          class="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 text-[11px] focus:border-emerald-500 focus:outline-none" 
+                          :placeholder="t('placeholder_option_desc')" />
+                        <input 
+                          v-else
+                          type="text" 
+                          :value="JSON.stringify(crit)"
+                          disabled
+                          class="flex-1 bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-500 text-[11px]" />
+                        <button 
+                          @click="deleteChoiceOption(q, optKey)" 
+                          class="text-slate-400 hover:text-rose-600 px-1.5 pt-0.5 text-sm transition leading-none">
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Criteria for Score -->
+                  <div v-if="q.type === 'score'" class="pt-1.5 space-y-1.5 border-t border-slate-100">
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                      <span>{{ t('levels_label') }}</span>
+                      <button @click="addScoreLevel(q)" class="text-emerald-700 hover:text-emerald-800 font-medium">{{ t('add_level') }}</button>
+                    </div>
+                    <div class="space-y-1">
+                      <div v-for="(lvl, sIdx) in q.criteria" :key="sIdx" class="flex items-center space-x-1.5 text-xs font-mono">
+                        <span class="text-slate-400 text-[10px] w-6 shrink-0 text-center">[{{ sIdx }}]</span>
+                        <input 
+                          type="text" 
+                          v-model="q.criteria[sIdx]" 
+                          @focus="recordFieldFocus" 
+                          @blur="recordFieldBlur" 
+                          class="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 text-[11px] focus:border-emerald-500 focus:outline-none" 
+                          :placeholder="t('placeholder_level_desc')" />
+                        <button 
+                          @click="deleteScoreLevel(q, sIdx)" 
+                          class="text-slate-400 hover:text-rose-600 px-1.5 text-sm transition leading-none">
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Criteria for Noul -->
+                  <div v-if="q.type === 'noul'" class="pt-1.5 space-y-1.5 border-t border-slate-100">
+                    <div class="text-[10px] text-slate-500 font-mono">{{ t('criteria_label') }}</div>
+                    <div class="space-y-1 text-xs font-mono">
+                      <div class="flex items-center space-x-2">
+                        <span class="text-emerald-700 font-medium text-[10px] w-12 shrink-0">True:</span>
+                        <input 
+                          type="text" 
+                          v-model="(q.criteria = q.criteria || {}).true" 
+                          @focus="recordFieldFocus" 
+                          @blur="recordFieldBlur" 
+                          :placeholder="t('placeholder_true_cond')" 
+                          class="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 text-[11px] focus:border-emerald-500 focus:outline-none" />
+                      </div>
+                      <div class="flex items-center space-x-2">
+                        <span class="text-rose-700 font-medium text-[10px] w-12 shrink-0">False:</span>
+                        <input 
+                          type="text" 
+                          v-model="(q.criteria = q.criteria || {}).false" 
+                          @focus="recordFieldFocus" 
+                          @blur="recordFieldBlur" 
+                          :placeholder="t('placeholder_false_cond')" 
+                          class="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 text-[11px] focus:border-emerald-500 focus:outline-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- View 2: JSON Code Editor -->
+              <div v-if="questionsViewMode === 'json'" class="flex-1 min-h-0 flex flex-col space-y-2">
+                <div class="shrink-0 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                  <span>{{ t('view_json') }}</span>
+                  <button @click="formatQuestionsJson" class="text-emerald-700 hover:text-emerald-800 font-medium">{{ t('format') }}</button>
+                </div>
+                <textarea 
+                  v-model="questionsJsonText" 
+                  @input="onQuestionsJsonInput"
+                  class="w-full flex-1 min-h-[140px] bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none resize-none leading-relaxed transition-all shadow-2xs">
+                </textarea>
+                <div v-if="jsonParseError" class="shrink-0 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-mono shadow-2xs">
+                  {{ t('syntax_error') }}: {{ jsonParseError }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pinned Bottom: Attribution Toggle & Execute Bar -->
+          <div class="shrink-0 p-4 pt-2.5 border-t border-slate-200 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.03)] space-y-2">
+            <!-- Attribution Toggle -->
+            <div class="flex items-center justify-between px-1 text-xs font-mono text-slate-600">
+              <label class="flex items-center space-x-2 cursor-pointer select-none hover:text-emerald-700 transition">
+                <input 
+                  type="checkbox" 
+                  v-model="enableAttribution" 
+                  class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+                <span>{{ t('token_attribution') }}</span>
+              </label>
+            </div>
+
+            <!-- Execute Button -->
+            <div>
+              <button 
+                @click="runCurrentCase"
+                :disabled="loading"
+                class="w-full py-2.5 px-4 rounded-lg font-semibold text-xs bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white shadow-xs hover:shadow-sm ring-2 ring-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all font-mono">
+                <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ loading ? t('executing') : t('execute') }}</span>
+              </button>
+            </div>
+
+            <!-- Error Alert -->
+            <div v-if="errorMessage" class="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-mono shadow-2xs">
+              {{ errorMessage }}
+            </div>
+          </div>
+        </section>
+
+        <!-- Block 3: Results Display Panel -->
+        <section class="w-1/2 h-full bg-[#F8FAFC] flex flex-col overflow-hidden min-h-0">
+          <div class="shrink-0 px-5 py-3 border-b border-slate-200/80 bg-white flex items-center justify-between shadow-2xs">
+            <span class="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider">{{ t('tab_results') }}</span>
+            <div v-if="result" class="flex items-center space-x-2 text-xs font-mono text-slate-500">
+              <span class="text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md font-semibold">{{ result.latency_ms }} ms</span>
+              <span>·</span>
+              <span>{{ result.usage?.input_tokens || 0 }} tokens</span>
+            </div>
+          </div>
+
+          <div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+            <!-- Empty State -->
+            <div v-if="!result && !loading" class="h-full flex flex-col items-center justify-center text-slate-400 text-xs font-mono space-y-2">
+              <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shadow-2xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              </div>
+              <span>{{ t('waiting_execution') }}</span>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="loading" class="h-full flex flex-col items-center justify-center text-emerald-800 text-xs font-mono space-y-3">
+              <svg class="animate-spin h-7 w-7 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span class="font-medium">{{ t('executing') }}</span>
+            </div>
+
+            <!-- Result Content -->
+            <div v-if="result && !loading" class="space-y-4">
+            <!-- Workflow Action -->
+            <div v-if="result.workflow" class="border border-slate-200 bg-white rounded-xl p-4 space-y-2 shadow-2xs">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] uppercase font-mono text-slate-500 font-semibold">{{ t('workflow_actions') }}</span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold"
+                      :class="{
+                        'bg-emerald-50 text-emerald-800 border border-emerald-200': result.workflow.status_tag === 'success',
+                        'bg-amber-50 text-amber-800 border border-amber-200': result.workflow.status_tag === 'warning',
+                        'bg-rose-50 text-rose-800 border border-rose-200': result.workflow.status_tag === 'danger',
+                        'bg-slate-100 text-slate-700 border border-slate-200': result.workflow.status_tag === 'info'
+                      }">
+                  {{ result.workflow.status_tag }}
+                </span>
+              </div>
+              <div class="text-sm font-bold text-slate-900">{{ result.workflow.headline }}</div>
+              <div class="text-xs text-slate-600 leading-relaxed">{{ result.workflow.detail }}</div>
+
+              <div v-if="result.workflow.generated_code" class="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-mono text-emerald-800 leading-relaxed overflow-x-auto">
+                {{ result.workflow.generated_code }}
+              </div>
+
+              <div v-if="result.workflow.actions && result.workflow.actions.length" class="space-y-1.5 pt-1">
+                <div v-for="(act, i) in result.workflow.actions" :key="i" class="text-xs bg-slate-50 border border-slate-200/80 rounded-md px-3 py-2 flex items-center justify-between font-mono shadow-2xs">
+                  <span class="text-emerald-800 font-semibold">{{ act.action }}</span>
+                  <span class="text-slate-600 text-[11px]">
+                    {{ Object.entries(act).filter(([k]) => k !== 'action').map(([k,v]) => `${k}:${v}`).join(' ') }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Decision Attribution & Saliency Map Section -->
+            <div v-if="attributionResult" class="border border-slate-200 bg-white rounded-xl p-4 space-y-3 shadow-2xs">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                <span class="text-[10px] uppercase font-mono text-slate-500 font-semibold">{{ t('attribution_title') }}</span>
+
+                <!-- Attribution Question Switcher -->
+                <div v-if="availableAttributionQuestions.length > 1" class="flex flex-wrap gap-1.5 font-mono text-xs">
+                  <button 
+                    v-for="qKey in availableAttributionQuestions" 
+                    :key="qKey"
+                    @click="selectedAttributionQuestion = qKey"
+                    :class="(selectedAttributionQuestion || attributionResult.primary_question_id) === qKey ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-2xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'"
+                    class="px-2.5 py-0.5 rounded-md border text-[11px] transition-all hover:-translate-y-0.5">
+                    {{ qKey }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Winner Metric Banner -->
+              <div v-if="currentAttribution" class="flex items-center justify-between text-xs font-mono text-slate-700 bg-emerald-50/60 border border-emerald-200/60 rounded-lg px-3 py-2">
+                <div>
+                  <span class="text-slate-500">{{ t('output_label') }} </span>
+                  <span class="text-emerald-800 font-bold">{{ currentAttribution.winner }}</span>
+                </div>
+                <div class="text-[11px] text-slate-600">
+                  <span>{{ t('confidence_label') }} </span>
+                  <span class="text-slate-900 font-semibold">
+                    {{ typeof currentAttribution.base_val === 'number' && currentAttribution.base_val <= 1 ? (currentAttribution.base_val * 100).toFixed(1) + '%' : currentAttribution.base_val }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Inline Token Saliency Stream -->
+              <div v-if="currentAttribution && currentAttribution.tokens && currentAttribution.tokens.length" class="space-y-2">
+                <div class="text-[10px] uppercase font-mono text-slate-500 flex items-center justify-between">
+                  <span>{{ t('saliency_stream') }}</span>
+                  <div class="flex items-center space-x-2 text-[10px]">
+                    <span class="inline-flex items-center space-x-1"><span class="w-2 h-2 rounded-xs bg-emerald-500"></span><span class="text-slate-600">{{ t('positive') }}</span></span>
+                    <span class="inline-flex items-center space-x-1"><span class="w-2 h-2 rounded-xs bg-slate-300"></span><span class="text-slate-600">{{ t('neutral') }}</span></span>
+                    <span class="inline-flex items-center space-x-1"><span class="w-2 h-2 rounded-xs bg-rose-400"></span><span class="text-slate-600">{{ t('negative') }}</span></span>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 p-3 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs leading-relaxed select-none">
+                  <span 
+                    v-for="(tok, tIdx) in currentAttribution.tokens" 
+                    :key="tIdx"
+                    @mouseenter="hoveredToken = tok"
+                    @mouseleave="hoveredToken = null"
+                    :style="{
+                      backgroundColor: tok.type === 'positive' 
+                        ? 'rgba(16, 185, 129, ' + (0.12 + (tok.weight || 0) * 0.45) + ')' 
+                        : (tok.type === 'negative' ? 'rgba(244, 63, 94, 0.16)' : 'rgba(241, 245, 249, 0.8)'),
+                      borderColor: tok.type === 'positive'
+                        ? (tok.weight > 0.35 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(16, 185, 129, 0.25)')
+                        : (tok.type === 'negative' ? 'rgba(244, 63, 94, 0.35)' : 'rgba(226, 232, 240, 0.9)')
+                    }"
+                    :class="{
+                      'text-emerald-950 font-bold shadow-2xs': tok.type === 'positive' && tok.weight > 0.4,
+                      'text-emerald-900 font-medium': tok.type === 'positive' && tok.weight <= 0.4,
+                      'text-rose-800 font-medium': tok.type === 'negative',
+                      'text-slate-600': tok.type === 'neutral',
+                      'ring-2 ring-emerald-500/40 -translate-y-0.5 shadow-xs': hoveredToken === tok
+                    }"
+                    class="px-2 py-1 rounded border transition-all cursor-pointer relative group flex items-center space-x-1">
+                    <span>{{ tok.token }}</span>
+                    <span v-if="tok.type === 'positive' && tok.weight >= 0.4" class="text-[9px] text-emerald-700 font-bold">
+                      +{{ (tok.delta * 100).toFixed(0) }}%
+                    </span>
+                  </span>
+                </div>
+
+                <!-- Hover Details or Top Ranking Footer -->
+                <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-mono shadow-2xs">
+                  <!-- Active Hover Detail -->
+                  <div v-if="hoveredToken" class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-slate-500">{{ t('token_label') }}</span>
+                      <span class="font-bold text-slate-900 bg-white border border-slate-200 px-1.5 py-0.5 rounded shadow-2xs">"{{ hoveredToken.token }}"</span>
+                      <span class="text-slate-500">{{ t('contribution_label') }}</span>
+                      <span :class="hoveredToken.delta >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'">
+                        {{ hoveredToken.delta >= 0 ? '+' : '' }}{{ (hoveredToken.delta * 100).toFixed(1) }}%
+                      </span>
+                    </div>
+
+                    <div class="text-slate-500">
+                      <span>{{ t('ablation_label') }} </span>
+                      <span class="text-slate-800 font-medium">
+                        {{ (hoveredToken.base_val * 100).toFixed(1) }}% → {{ (hoveredToken.ablated_val * 100).toFixed(1) }}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Default Top Drivers List -->
+                  <div v-else class="flex items-center justify-between text-slate-500">
+                    <span class="text-slate-600 font-medium">{{ t('top_drivers') }}</span>
+                    <div v-if="currentAttribution.top_drivers && currentAttribution.top_drivers.length" class="flex items-center space-x-3">
+                      <span 
+                        v-for="(td, idx) in currentAttribution.top_drivers" 
+                        :key="idx" 
+                        class="text-slate-700">
+                        <span class="text-emerald-700 font-bold">#{{ idx + 1 }}</span> {{ td.token }}
+                        <span class="text-emerald-700 font-semibold text-[10px]">(+{{ (td.delta * 100).toFixed(1) }}%)</span>
+                      </span>
+                    </div>
+                    <div v-else class="text-slate-400">{{ t('balanced_distribution') }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- On-demand Attribution Trigger if not yet generated -->
+            <div v-else-if="result" class="border border-slate-200 bg-white rounded-xl p-3.5 flex items-center justify-between shadow-2xs">
+              <span class="text-xs font-mono text-slate-500">{{ t('attr_not_calculated') }}</span>
+              <button 
+                @click="analyzeAttributionNow"
+                :disabled="analyzingAttribution"
+                class="px-3 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-mono font-semibold transition-all shadow-2xs hover:-translate-y-0.5">
+                {{ analyzingAttribution ? t('calculating_attr') : t('calculate_attr') }}
+              </button>
+            </div>
+
+            <!-- Primitives List -->
+            <div class="space-y-2">
+              <div class="text-[10px] uppercase font-mono text-slate-500 font-semibold">{{ t('primitives_detail') }}</div>
+
+              <div 
+                v-for="(ans, q_id) in result.answers" 
+                :key="q_id"
+                class="border border-slate-200 bg-white rounded-xl p-3.5 space-y-2.5 shadow-2xs hover:border-emerald-300 transition-all">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold">
+                      {{ ans.type }}
+                    </span>
+                    <span class="text-xs font-mono font-bold text-slate-900">{{ q_id }}</span>
+                  </div>
+
+                  <div v-if="ans.confidence !== undefined" class="text-[11px] font-mono text-slate-500">
+                    {{ t('confidence_label') }} <span class="font-bold text-slate-800">{{ (ans.confidence * 100).toFixed(1) }}%</span>
+                  </div>
+                </div>
+
+                <!-- Choice -->
+                <div v-if="ans.type === 'choice'" class="space-y-2">
+                  <div class="text-xs flex items-center space-x-1.5 font-mono">
+                    <span class="text-slate-500">{{ t('output_label') }}</span>
+                    <span class="text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">{{ ans.choice }}</span>
+                  </div>
+
+                  <div v-if="ans.probabilities" class="space-y-1.5 pt-1">
+                    <div v-for="(prob, opt) in ans.probabilities" :key="opt" class="text-xs font-mono">
+                      <div class="flex justify-between text-[11px] text-slate-600 mb-0.5">
+                        <span :class="opt === ans.choice ? 'text-emerald-800 font-bold' : ''">{{ opt }}</span>
+                        <span>{{ (prob * 100).toFixed(1) }}%</span>
+                      </div>
+                      <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          class="h-full rounded-full transition-all duration-500"
+                          :class="opt === ans.choice ? 'bg-emerald-500' : 'bg-slate-300'"
+                          :style="{ width: (prob * 100) + '%' }">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Score -->
+                <div v-if="ans.type === 'score'" class="space-y-2">
+                  <div class="text-xs flex items-center justify-between font-mono">
+                    <span class="text-slate-500">{{ t('score_label') }}</span>
+                    <span class="text-emerald-800 font-bold text-sm bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">{{ ans.score?.toFixed(2) }}</span>
+                  </div>
+
+                  <div v-if="ans.probabilities" class="space-y-1.5 pt-0.5">
+                    <div v-for="(prob, opt) in ans.probabilities" :key="opt" class="text-xs font-mono">
+                      <div class="flex justify-between text-[11px] text-slate-600 mb-0.5">
+                        <span class="truncate max-w-[240px]">{{ opt }}</span>
+                        <span>{{ (prob * 100).toFixed(1) }}%</span>
+                      </div>
+                      <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full transition-all duration-500" :style="{ width: (prob * 100) + '%' }"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Noul -->
+                <div v-if="ans.type === 'noul'" class="space-y-1.5">
+                  <div class="text-xs flex items-center justify-between font-mono">
+                    <span class="text-slate-500">{{ t('probability_label') }}</span>
+                    <span class="font-bold text-slate-800">{{ (ans.noul * 100).toFixed(1) }}%</span>
+                  </div>
+                  <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      class="h-full rounded-full transition-all duration-500"
+                      :class="ans.noul >= 0.5 ? 'bg-emerald-500' : 'bg-slate-300'"
+                      :style="{ width: (ans.noul * 100) + '%' }">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Raw JSON -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <button 
+                @click="showRawJson = !showRawJson"
+                class="w-full px-3.5 py-2 hover:bg-slate-50 text-left text-[11px] font-mono text-slate-600 flex items-center justify-between transition">
+                <span class="font-medium">{{ t('raw_json') }}</span>
+                <span class="text-slate-400">{{ showRawJson ? t('collapse') : t('expand') }}</span>
+              </button>
+              <div v-if="showRawJson" class="p-3.5 bg-slate-50 border-t border-slate-100 font-mono text-[11px] text-slate-800 overflow-x-auto max-h-60 leading-relaxed">
+                <pre>{{ JSON.stringify(result.raw_response, null, 2) }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+    <!-- API Key & Endpoint Modal -->
+    <div v-if="showKeyModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div class="bg-white border border-slate-200 w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-slate-900 text-sm">{{ t('api_settings') }}</span>
+          <button @click="showKeyModal = false" class="text-slate-400 hover:text-slate-700 text-lg leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] text-slate-500 uppercase font-semibold">API Key</label>
+            <button @click="apiKeyInput = 'mock'" class="text-[10px] text-emerald-700 hover:underline font-semibold">{{ t('mock_mode') }}</button>
+          </div>
+          <input 
+            v-model="apiKeyInput"
+            type="password"
+            :placeholder="t('placeholder_api_key')"
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-colors"
+          />
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-[10px] text-slate-500 uppercase font-semibold">{{ t('base_url_label') }}</label>
+          <input 
+            v-model="apiBaseUrlInput"
+            type="text"
+            :placeholder="t('placeholder_base_url')"
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-colors"
+          />
+        </div>
+
+        <div v-if="keyTestMessage" class="p-2.5 rounded-lg text-xs" :class="apiKeyValid ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'">
+          {{ keyTestMessage }}
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button 
+            @click="testCurrentKey"
+            :disabled="testingKey"
+            class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition shadow-2xs font-semibold hover:-translate-y-0.5">
+            {{ testingKey ? t('testing_connection') : t('test_connection') }}
+          </button>
+
+          <div class="flex space-x-2">
+            <button 
+              @click="showKeyModal = false"
+              class="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 font-medium">
+              {{ t('cancel') }}
+            </button>
+            <button 
+              @click="saveApiKey"
+              class="px-4 py-1.5 rounded-lg font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-xs hover:-translate-y-0.5">
+              {{ t('save') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recursive State Node Template -->
+  <template id="state-node-template">
+    <div 
+      :class="depth === 0 
+        ? 'border border-slate-200 bg-white rounded-lg p-3 space-y-2 text-xs font-mono shadow-2xs hover:shadow-xs hover:border-emerald-300 transition-all duration-150' 
+        : 'border border-slate-200/90 bg-white/80 rounded-md p-2.5 space-y-2 text-xs font-mono hover:border-emerald-300 transition-all'">
+      
+      <!-- Node Header -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
+        <div class="flex items-center space-x-1.5 flex-1 mr-2 min-w-0">
+          <!-- Toggle Collapse Chevron for Object/Array -->
+          <button 
+            v-if="node.type === 'object' || node.type === 'array'"
+            @click="toggleCollapse"
+            type="button"
+            class="w-4 h-4 flex items-center justify-center text-slate-400 hover:text-emerald-700 transition-transform duration-150 shrink-0"
+            :class="{ 'rotate-90 text-emerald-700': !node.collapsed }">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+
+          <!-- Index or Order Pill -->
+          <span v-if="parentType === 'array'" class="text-[10px] text-slate-400 font-mono shrink-0">[{{ index }}]</span>
+          <span v-else-if="depth === 0" class="text-[10px] text-slate-400 font-mono shrink-0">#{{ index + 1 }}</span>
+
+          <!-- Key Input (if not array element) -->
+          <input 
+            v-if="parentType !== 'array'"
+            type="text" 
+            v-model="node.key" 
+            @input="$emit('change')"
+            @focus="$emit('focus')" 
+            @blur="$emit('blur')" 
+            :placeholder="t('placeholder_key')"
+            class="flex-1 min-w-[80px] bg-slate-50 border border-slate-200 rounded px-2 py-0.5 text-xs font-mono font-semibold text-emerald-800 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-colors" />
+
+          <!-- Count badge for Object / Array -->
+          <span 
+            v-if="node.type === 'object' || node.type === 'array'" 
+            class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-mono font-semibold shrink-0 select-none">
+            {{ (node.children || []).length }} {{ t('items_count') }}
+          </span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center space-x-1.5 shrink-0">
+          <!-- Add Child Button for Container Nodes -->
+          <button 
+            v-if="node.type === 'object' || node.type === 'array'"
+            @click="addChild"
+            type="button"
+            class="text-[10px] px-2 py-0.5 rounded border border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 font-semibold shadow-2xs hover:-translate-y-0.5 active:scale-95 transition-all">
+            {{ t('add_item') }}
+          </button>
+
+          <!-- Type Selector -->
+          <select 
+            :value="node.type" 
+            @change="changeType($event.target.value)"
+            class="bg-slate-50 border border-slate-200 text-[10px] font-mono uppercase px-1.5 py-0.5 rounded text-slate-700 focus:border-emerald-500 focus:outline-none cursor-pointer">
+            <option value="string">string</option>
+            <option value="number">number</option>
+            <option value="boolean">boolean</option>
+            <option value="object">object</option>
+            <option value="array">array</option>
+          </select>
+
+          <!-- Delete Button -->
+          <button 
+            @click="$emit('delete')" 
+            type="button"
+            class="text-slate-400 hover:text-rose-600 text-xs font-mono px-1 transition">
+            {{ t('delete') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Node Content -->
+      <div class="space-y-1.5">
+        <!-- 1. String Input -->
+        <div v-if="node.type === 'string'">
+          <textarea 
+            v-if="(node.value && node.value.length > 40) || (node.value && node.value.includes('\n')) || (node.key && (node.key.includes('message') || node.key.includes('detail') || node.key.includes('desc') || node.key.includes('request')))"
+            v-model="node.value" 
+            @input="$emit('change')"
+            @focus="$emit('focus')" 
+            @blur="$emit('blur')" 
+            rows="3" 
+            :placeholder="t('placeholder_text')"
+            class="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none resize-none leading-relaxed transition-colors"></textarea>
+          <input 
+            v-else
+            type="text"
+            v-model="node.value" 
+            @input="$emit('change')"
+            @focus="$emit('focus')" 
+            @blur="$emit('blur')" 
+            :placeholder="t('placeholder_text')"
+            class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-colors" />
+        </div>
+
+        <!-- 2. Number Input -->
+        <div v-else-if="node.type === 'number'">
+          <input 
+            type="number" 
+            v-model.number="node.value" 
+            @input="$emit('change')"
+            @focus="$emit('focus')" 
+            @blur="$emit('blur')" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 focus:outline-none transition-colors" />
+        </div>
+
+        <!-- 3. Boolean Input -->
+        <div v-else-if="node.type === 'boolean'" class="flex items-center space-x-2 py-0.5">
+          <button 
+            @click="node.value = true; $emit('change')"
+            type="button"
+            :class="node.value ? 'bg-emerald-50 text-emerald-800 border-emerald-400 font-semibold shadow-2xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'"
+            class="px-3 py-1 rounded border text-xs font-mono transition">
+            true
+          </button>
+          <button 
+            @click="node.value = false; $emit('change')"
+            type="button"
+            :class="!node.value ? 'bg-rose-50 text-rose-800 border-rose-300 font-semibold shadow-2xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'"
+            class="px-3 py-1 rounded border text-xs font-mono transition">
+            false
+          </button>
+        </div>
+
+        <!-- 4. Recursive Children (for Object / Array) -->
+        <div v-else-if="(node.type === 'object' || node.type === 'array') && !node.collapsed" class="pt-1 pl-2 border-l-2 border-emerald-400/30 space-y-2">
+          <div v-if="!node.children || node.children.length === 0" class="p-2.5 text-center text-slate-400 text-xs font-mono border border-dashed border-slate-200 rounded-md bg-white">
+            {{ t('no_items') }}
+          </div>
+          <state-node 
+            v-for="(child, cIdx) in node.children" 
+            :key="cIdx"
+            :node="child"
+            :index="cIdx"
+            :depth="depth + 1"
+            :parent-type="node.type"
+            @change="$emit('change')"
+            @focus="$emit('focus')"
+            @blur="$emit('blur')"
+            @delete="deleteChild(cIdx)">
+          </state-node>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script type="module" src="./static/app.js"></script>
+</body>
+</html>
